@@ -1,8 +1,9 @@
 import sys
 from PyQt6.QtWidgets import QApplication, QVBoxLayout, QLabel, QWidget, QGridLayout, QLineEdit, QPushButton, QComboBox, \
-    QMainWindow, QTableWidget
+    QMainWindow, QTableWidget,QTableWidgetItem
 from datetime import datetime
 from PyQt6.QtGui import QAction
+import sqlite3
 
 
 class MainWindow(QMainWindow):
@@ -24,15 +25,26 @@ class MainWindow(QMainWindow):
         # only for mac if help does not show
         # about_action.setMenuRole(QAction.MenuRole.NoRole)
 
+        # insert table with SQL data
         self.table = QTableWidget()
         self.table.setColumnCount(4)
         self.table.setHorizontalHeaderLabels(("id", "Name", "Course", "Mobile"))
+        self.table.verticalHeader().setVisible(False)
         self.setCentralWidget(self.table)
+
     def load_data(self):
-        pass
+        connection = sqlite3.connect("database.db")
+        result = list(connection.execute("SELECT * FROM students"))
+        self.table.setRowCount(0)
+        for index , student in enumerate(result):
+            self.table.insertRow(index)
+            for column, data in enumerate(student):
+                self.table.setItem(index, column, QTableWidgetItem(str(data)))
+        connection.close()
 
 
 app = QApplication(sys.argv)
 age_calculator = MainWindow()
 age_calculator.show()
+age_calculator.load_data()
 sys.exit(app.exec())
