@@ -5,14 +5,19 @@ from datetime import datetime
 from PyQt6.QtGui import QAction, QIcon
 import sqlite3
 from PyQt6.QtCore import Qt
+import mysql.connector
+import os
 
 
 class DatabaseConnection:
-    def __init__(self, database_file="database.db"):
-        self.database_file = database_file
+    def __init__(self, host=os.getenv("MYSQL_HOST"), user=os.getenv("MYSQL_USER"), password=os.getenv("MYSQL_PASSWORD"), database=os.getenv("MYSQL_DATABASE")):
+        self.host = host
+        self.user = user
+        self.password = password
+        self.database = database
 
     def connect(self):
-        connection = sqlite3.connect(self.database_file)
+        connection = mysql.connector.connect(host=self.host, user=self.user, password=self.password, database=self.database)
         return connection
 
 class MainWindow(QMainWindow):
@@ -93,7 +98,9 @@ class MainWindow(QMainWindow):
 
     def load_data(self):
         connection = DatabaseConnection().connect()
-        result = list(connection.execute("SELECT * FROM students"))
+        cursor = connection.cursor()
+        cursor.execute("SELECT * FROM students")
+        result = cursor.fetchall()
         self.table.setRowCount(0)
         for index, student in enumerate(result):
             self.table.insertRow(index)
@@ -172,7 +179,7 @@ class EditDialog(QDialog):
     def edit_student(self):
         connection = DatabaseConnection().connect()
         cursor = connection.cursor()
-        cursor.execute("UPDATE students SET name = ?, course = ?, mobile = ? WHERE id = ?",
+        cursor.execute("UPDATE students SET student_name = %s, course = %s, mobile = %s WHERE id = %s",
                        (self.student_name.text(),
                         self.course_name.itemText(self.course_name.currentIndex()),
                         self.mobile.text(),
@@ -208,7 +215,7 @@ class DeleteDialog(QDialog):
 
         connection = DatabaseConnection().connect()
         cursor = connection.cursor()
-        cursor.execute("DELETE FROM students WHERE  id = ?", (student_id,))
+        cursor.execute("DELETE FROM students WHERE  id = %s", (student_id,))
         connection.commit()
         cursor.close()
         connection.close()
@@ -260,7 +267,7 @@ class InsertDialog(QDialog):
         name = self.student_name.text()
         course = self.course_name.itemText(self.course_name.currentIndex())
         mobile = self.mobile.text()
-        cursor.execute("INSERT INTO students (name, course, mobile) VALUES (?, ?, ?)", (name, course, mobile))
+        cursor.execute("INSERT INTO students (student_name, course, mobile) VALUES (%s, %s, %s)", (name, course, mobile))
         connection.commit()
         cursor.close()
         connection.close()
@@ -292,7 +299,8 @@ class SearchDialog(QDialog):
         name = self.student_name.text()
         connection = DatabaseConnection().connect()
         cursor = connection.cursor()
-        result = cursor.execute("SELECT * FROM students where name = ?", (name,))
+        cursor.execute("SELECT * FROM students where student_name = %s", (name,))
+        result = cursor.fetchall()
         items = main_window.table.findItems(name, Qt.MatchFlag.MatchFixedString)
         for item in items:
             print(item)
